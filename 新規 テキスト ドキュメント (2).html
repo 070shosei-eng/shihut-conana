@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>こななシフト管理表</title>
+    <style>
+        :root {
+            --primary-color: #4a90e2;
+            --bg-color: #f5f7fb;
+            --card-bg: #ffffff;
+            --text-color: #333333;
+            --border-color: #e0e0e0;
+            --holiday-bg: #eaeaea;
+            --holiday-text: #999999;
+            --danger-color: #e74c3c;
+            /* 休み申請用の濃い赤 */
+            --leave-bg: #c0392b; 
+            --leave-text: #ffffff;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header {
+            width: 100%;
+            max-width: 1300px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        h1 { color: #2c3e50; margin-bottom: 5px; font-size: 1.8rem; }
+
+        /* 画面切り替えタブ */
+        .tab-container {
+            display: flex;
+            width: 100%;
+            max-width: 1300px;
+            margin-bottom: 20px;
+            border-bottom: 3px solid var(--primary-color);
+        }
+
+        .tab-button {
+            padding: 12px 24px;
+            background: #e0e0e0;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1rem;
+            color: #555;
+            border-radius: 8px 8px 0 0;
+            margin-right: 5px;
+            transition: all 0.2s;
+        }
+
+        .tab-button.active {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        /* コンテンツエリア */
+        .page-content {
+            display: none;
+            width: 100%;
+            max-width: 1300px;
+        }
+
+        .page-content.active {
+            display: block;
+        }
+
+        /* 管理画面のレイアウト */
+        .admin-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+
+        h2 {
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid var(--primary-color);
+            color: #2c3e50;
+        }
+
+        .form-group { margin-bottom: 12px; }
+        .form-row { display: flex; gap: 5px; }
+        label { display: block; font-size: 0.85rem; font-weight: bold; margin-bottom: 5px; color: #666; }
+        input, select { width: 100%; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 5px; font-size: 0.9rem; outline: none; }
+        input:focus, select:focus { border-color: var(--primary-color); }
+        
+        button {
+            width: 100%; padding: 10px; background-color: var(--primary-color); color: white;
+            border: none; border-radius: 5px; font-weight: bold; cursor: pointer; transition: background 0.2s;
+        }
+        button:hover { background-color: #357abd; }
+        .btn-sm { padding: 5px 10px; font-size: 0.8rem; width: auto; }
+
+        /* スタッフタグ */
+        .staff-tag-list { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
+        .staff-tag { font-size: 0.8rem; padding: 3px 8px; border-radius: 15px; display: flex; align-items: center; gap: 5px; font-weight: bold; }
+        .delete-staff { cursor: pointer; color: #ff4d4d; font-weight: bold; }
+
+        /* 週固定設定テーブル */
+        .weekly-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+        .weekly-table td { padding: 6px 0; font-size: 0.9rem; }
+        .weekly-table td:first-child { font-weight: bold; width: 35%; color: #555; }
+
+        /* カレンダー画面表示 */
+        .calendar-view-box {
+            background: var(--card-bg);
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+
+        .calendar-header {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;
+        }
+        .calendar-header button { width: auto; padding: 6px 18px; }
+
+        .calendar-grid {
+            display: grid; grid-template-columns: repeat(7, 100fr); gap: 8px;
+        }
+
+        .day-name { text-align: center; font-weight: bold; font-size: 0.9rem; padding: 5px 0; color: #7f8c8d; }
+        .day-name:nth-child(1) { color: #e74c3c; } 
+        .day-name:nth-child(7) { color: #3498db; } 
+
+        .calendar-day {
+            min-height: 140px; border: 1px solid var(--border-color); border-radius: 6px;
+            padding: 6px; background-color: #fff; display: flex; flex-direction: column;
+            position: relative;
+        }
+
+        .day-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+        .day-number { font-size: 0.85rem; font-weight: bold; color: #555; }
+        
+        .day-staff {
+            font-size: 0.72rem; font-weight: bold; padding: 1px 4px; border-radius: 3px;
+            max-width: 75%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .day-staff.changed {
+            border: 1px dashed #333;
+            box-shadow: 0 0 2px rgba(0,0,0,0.3);
+        }
+
+        /* 通常に戻すボタン */
+        .revert-shift-btn {
+            font-size: 0.65rem;
+            color: #555;
+            background: #eee;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            padding: 1px 4px;
+            cursor: pointer;
+            margin-left: 4px;
+        }
+        .revert-shift-btn:hover { background: #ddd; }
+        /* 休み申請（濃い赤）の中の通常に戻すボタンの見栄え調整 */
+        .calendar-day.leave-day .revert-shift-btn {
+            background: rgba(255,255,255,0.2);
+            color: #fff;
+            border-color: rgba(255,255,255,0.4);
+        }
+        .calendar-day.leave-day .revert-shift-btn:hover { background: rgba(255,255,255,0.4); }
+
+        /* 定休日スタイル (薄いグレー) */
+        .calendar-day.regular-holiday {
+            background-color: var(--holiday-bg) !important;
+            color: var(--holiday-text) !important;
+        }
+        .calendar-day.regular-holiday .day-number { color: var(--holiday-text); }
+        
+        /* 休み申請スタイル (濃い赤) */
+        .calendar-day.leave-day {
+            background-color: var(--leave-bg) !important;
+            color: var(--leave-text) !important;
+        }
+        .calendar-day.leave-day .day-number { color: var(--leave-text); }
+
+        .closed-label {
+            font-size: 0.75rem; font-weight: bold; text-align: center; margin-top: 15px;
+        }
+        .closed-label.regular { color: #e74c3c; }
+        .closed-label.leave { color: #ffffff; }
+
+        /* 予約のバッジと操作ボタン */
+        .reservation-item {
+            font-size: 0.72rem; padding: 2px 4px; margin-bottom: 3px; border-radius: 3px;
+            background-color: #e9ecef; border-left: 3px solid #6c757d;
+            color: #333; display: flex; justify-content: space-between; align-items: center;
+        }
+        .res-text {
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;
+        }
+        .res-actions {
+            display: flex; gap: 3px; margin-left: 4px; opacity: 0.6; transition: opacity 0.2s;
+        }
+        .reservation-item:hover .res-actions { opacity: 1; }
+        .res-btn {
+            cursor: pointer; font-size: 0.7rem; border: none; background: none; padding: 0 2px;
+        }
+        .res-btn.del { color: var(--danger-color); }
+        .res-btn.edit { color: var(--primary-color); }
+
+        .type-宴会 { border-left-color: #fd7e14; background-color: #ffe8cc; }
+        .type-一般 { border-left-color: #20c997; background-color: #e6fcf5; }
+        .type-貸切 { border-left-color: #e64980; background-color: #fff0f6; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>こななシフト管理表</h1>
+    </header>
+
+    <div class="tab-container">
+        <button class="tab-button active" onclick="switchTab('calendar-page')">📅 カレンダー表示 (閲覧・編集用)</button>
+        <button class="tab-button" onclick="switchTab('admin-page')">⚙️ シフト・予約・休み登録 (管理画面)</button>
+    </div>
+
+    <div id="calendar-page" class="page-content active">
+        <div class="calendar-view-box">
+            <div class="calendar-header">
+                <button onclick="changeMonth(-1)">◀ 前月</button>
+                <h2 id="calendar-title">年月データ</h2>
+                <button onclick="changeMonth(1)">次月 ▶</button>
+            </div>
+            <div class="calendar-grid" id="calendar-grid"></div>
+        </div>
+    </div>
+
+    <div id="admin-page" class="page-content">
+        <div class="admin-grid">
+            
+            <div class="card">
+                <h2>① スタッフの名前登録</h2>
+                <form id="staff-form">
+                    <div class="form-row">
+                        <input type="text" id="staff-name" placeholder="例: 山田さん" required>
+                        <button type="submit" class="btn-sm">登録</button>
+                    </div>
+                </form>
+                <div class="staff-tag-list" id="staff-tag-list"></div>
+            </div>
+
+            <div class="card">
+                <h2>② 週固定シフトの設定 (基本)</h2>
+                <p style="font-size:0.75rem; color:#666; margin-bottom:10px;">※日曜日と祝日月曜は自動で定休になります</p>
+                <form id="weekly-form">
+                    <table class="weekly-table">
+                        <tr style="opacity: 0.5;"><td>日曜日</td><td><span style="font-size:0.85rem; color:red; font-weight:bold;">自動定休日</span></td></tr>
+                        <tr><td>月曜日</td><td><select class="weekly-select" data-day="1"><option value="">休み</option></select></td></tr>
+                        <tr><td>火曜日</td><td><select class="weekly-select" data-day="2"><option value="">休み</option></select></td></tr>
+                        <tr><td>水曜日</td><td><select class="weekly-select" data-day="3"><option value="">休み</option></select></td></tr>
+                        <tr><td>木曜日</td><td><select class="weekly-select" data-day="4"><option value="">休み</option></select></td></tr>
+                        <tr><td>金曜日</td><td><select class="weekly-select" data-day="5"><option value="">休み</option></select></td></tr>
+                        <tr><td>土曜日</td><td><select class="weekly-select" data-day="6"><option value="">休み</option></select></td></tr>
+                    </table>
+                    <button type="button" onclick="saveWeeklyShift()">固定シフトを保存</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h2>③ 臨時休業・休み申請の登録</h2>
+                <form id="override-shift-form">
+                    <div class="form-group">
+                        <label for="override-date">対象の日付</label>
+                        <input type="date" id="override-date" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="override-staff">当日のステータス / 出勤スタッフ</label>
+                        <select id="override-staff" required>
+                            <option value="">-- 選択してください --</option>
+                            <option value="OFF">【店舗】臨時休業にする</option>
+                            </select>
+                    </div>
+                    <button type="submit">この日を変更する</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h2 id="reserve-form-title">④ 予約の入力</h2>
+                <form id="reserve-form">
+                    <input type="hidden" id="edit-index" value="">
+                    <input type="hidden" id="edit-old-date" value="">
+
+                    <div class="form-group">
+                        <label for="res-date">日付</label>
+                        <input type="date" id="res-date" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="res-name">お名前（〇〇様）</label>
+                        <input type="text" id="res-name" placeholder="例: スズキ様" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="res-count">人数</label>
+                        <input type="number" id="res-count" min="1" placeholder="4" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="res-time">時間</label>
+                        <input type="time" id="res-time" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="res-type">予約種別</label>
+                        <select id="res-type" required>
+                            <option value="一般">一般</option>
+                            <option value="宴会">宴会</option>
+                            <option value="貸切">貸切</option>
+                        </select>
+                    </div>
+                    <button type="submit" id="reserve-submit-btn">予約を登録</button>
+                    <button type="button" id="reserve-cancel-btn" style="background:#95a5a6; margin-top:5px; display:none;" onclick="cancelEditMode()">編集をキャンセル</button>
+                </form>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        let currentNavDate = new Date();
+
+        // データ構造
+        let AppData = {
+            staffs: [],         
+            weeklyShift: {},    
+            overrideShifts: {}, // {"YYYY-MM-DD": "OFF" または "LEAVE:名前" または "名前"}
+            reservations: {}    
+        };
+
+        const colorPalette = [
+            { bg: '#ffdde1', text: '#d0021b' }, { bg: '#ccedff', text: '#0076ff' },
+            { bg: '#dbfab6', text: '#417505' }, { bg: '#fef1b7', text: '#b38600' },
+            { bg: '#e8d7ff', text: '#6b23d5' }, { bg: '#ffd3ee', text: '#be107c' }
+        ];
+
+        // 祝日計算
+        function isJapaneseHoliday(year, month, day) {
+            const m = month + 1; const d = day;
+            const w = new Date(year, month, day).getDay(); 
+
+            if (m === 1 && d === 1) return true;  
+            if (m === 2 && d === 11) return true; 
+            if (m === 2 && d === 23) return true; 
+            if (m === 4 && d === 29) return true; 
+            if (m === 5 && d === 3) return true;  
+            if (m === 5 && d === 4) return true;  
+            if (m === 5 && d === 5) return true;  
+            if (m === 8 && d === 11) return true; 
+            if (m === 11 && d === 3) return true; 
+            if (m === 11 && d === 23) return true;
+
+            const countMonday = Math.floor((d - 1) / 7) + 1;
+            if (w === 1) { 
+                if (m === 1 && countMonday === 2) return true;  
+                if (m === 7 && countMonday === 3) return true;  
+                if (m === 9 && countMonday === 3) return true;  
+                if (m === 10 && countMonday === 2) return true; 
+            }
+
+            if (m === 3 && d === Math.floor(20.8431 + 0.242194 * (year - 1980) - Math.floor((year - 1980) / 4))) return true;
+            if (m === 9 && d === Math.floor(23.2488 + 0.242194 * (year - 1980) - Math.floor((year - 1980) / 4))) return true;
+
+            if (w === 1) {
+                const yesterday = new Date(year, month, day - 1);
+                if (isJapaneseHoliday(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate())) return true;
+            }
+            return false;
+        }
+
+        function switchTab(pageId) {
+            document.querySelectorAll('.page-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-button').forEach(el => el.classList.remove('active'));
+            document.getElementById(pageId).classList.add('active');
+            event.target.classList.add('active');
+            if(pageId === 'calendar-page') { renderCalendar(); }
+        }
+
+        function loadData() {
+            const saved = localStorage.getItem('shop_calendar_v6_data');
+            if (saved) { AppData = JSON.parse(saved); }
+        }
+
+        function saveData() {
+            localStorage.setItem('shop_calendar_v6_data', JSON.stringify(AppData));
+            renderAll();
+        }
+
+        function renderAll() {
+            renderStaffList();
+            updateDropdowns();
+            renderCalendar();
+        }
+
+        function renderStaffList() {
+            const container = document.getElementById('staff-tag-list');
+            container.innerHTML = '';
+            AppData.staffs.forEach((st, idx) => {
+                const tag = document.createElement('span');
+                tag.className = 'staff-tag';
+                tag.style.backgroundColor = st.color;
+                tag.style.color = st.textColor;
+                tag.innerHTML = `${st.name} <span class="delete-staff" onclick="deleteStaff(${idx})">×</span>`;
+                container.appendChild(tag);
+            });
+        }
+
+        function updateDropdowns() {
+            const weeklySelects = document.querySelectorAll('.weekly-select');
+            weeklySelects.forEach(select => {
+                const day = select.getAttribute('data-day');
+                const prev = AppData.weeklyShift[day] || "";
+                select.innerHTML = '<option value="">休み</option>';
+                AppData.staffs.forEach(st => {
+                    const opt = document.createElement('option');
+                    opt.value = st.name; opt.innerText = st.name;
+                    if(st.name === prev) opt.selected = true;
+                    select.appendChild(opt);
+                });
+            });
+
+            // 臨時変更・休み申請セレクト
+            const overrideSelect = document.getElementById('override-staff');
+            overrideSelect.innerHTML = `
+                <option value="">-- 選択してください (通常設定に戻す場合は空欄) --</option>
+                <option value="OFF">【店舗】臨時休業にする</option>
+            `;
+            
+            // 休み申請の項目を追加
+            AppData.staffs.forEach(st => {
+                const optLeave = document.createElement('option');
+                optLeave.value = `LEAVE:${st.name}`;
+                optLeave.innerText = `【休み申請】${st.name}`;
+                overrideSelect.appendChild(optLeave);
+            });
+
+            // 代わりの人の出勤用項目を追加
+            AppData.staffs.forEach(st => {
+                const optChange = document.createElement('option');
+                optChange.value = st.name;
+                optChange.innerText = `【代理出勤】${st.name} に変更`;
+                overrideSelect.appendChild(optChange);
+            });
+        }
+
+        // スタッフ追加
+        document.getElementById('staff-form').addEventListener('submit', function(e){
+            e.preventDefault();
+            const input = document.getElementById('staff-name');
+            const name = input.value.trim();
+            if(AppData.staffs.some(st => st.name === name)) { alert('同名のスタッフがいます'); return; }
+            if(name) {
+                const colorSet = colorPalette[AppData.staffs.length % colorPalette.length];
+                AppData.staffs.push({ name: name, color: colorSet.bg, textColor: colorSet.text });
+                input.value = '';
+                saveData();
+            }
+        });
+
+        // スタッフ個別削除
+        function deleteStaff(idx) {
+            const name = AppData.staffs[idx].name;
+            if(confirm(`${name}さんを削除しますか？関連設定も自動解除されます。`)){
+                for(let d in AppData.weeklyShift) if(AppData.weeklyShift[d] === name) AppData.weeklyShift[d] = "";
+                for(let date in AppData.overrideShifts) {
+                    if(AppData.overrideShifts[date] === name || AppData.overrideShifts[date] === `LEAVE:${name}`) {
+                        delete AppData.overrideShifts[date];
+                    }
+                }
+                AppData.staffs.splice(idx, 1);
+                saveData();
+            }
+        }
+
+        // 固定シフト保存
+        function saveWeeklyShift() {
+            document.querySelectorAll('.weekly-select').forEach(sel => {
+                AppData.weeklyShift[sel.getAttribute('data-day')] = sel.value;
+            });
+            saveData();
+            alert('基本の週固定シフトを保存しました。');
+        }
+
+        // 臨時休業・休み申請・シフト変更の保存
+        document.getElementById('override-shift-form').addEventListener('submit', function(e){
+            e.preventDefault();
+            const date = document.getElementById('override-date').value;
+            const status = document.getElementById('override-staff').value;
+            if(date) {
+                if(status === "") {
+                    delete AppData.overrideShifts[date];
+                    alert('指定日を通常シフトの設定に戻しました。');
+                } else {
+                    AppData.overrideShifts[date] = status;
+                    alert('設定を適用しました。');
+                }
+                saveData();
+                this.reset();
+            }
+        });
+
+        // 個別通常復帰機能
+        function revertShift(dateStr) {
+            if(confirm(`${dateStr} の設定を取り消し、通常の週固定スケジュールに戻しますか？`)) {
+                delete AppData.overrideShifts[dateStr];
+                saveData();
+            }
+        }
+
+        // 予約の個別削除機能
+        function deleteReservation(dateStr, index) {
+            if(confirm('この予約を削除しますか？')) {
+                AppData.reservations[dateStr].splice(index, 1);
+                if(AppData.reservations[dateStr].length === 0) { delete AppData.reservations[dateStr]; }
+                saveData();
+            }
+        }
+
+        // 予約の編集モード移行機能
+        function editReservation(dateStr, index) {
+            const res = AppData.reservations[dateStr][index];
+            
+            document.getElementById('edit-index').value = index;
+            document.getElementById('edit-old-date').value = dateStr;
+            document.getElementById('res-date').value = dateStr;
+            document.getElementById('res-name').value = res.name;
+            document.getElementById('res-count').value = res.count;
+            document.getElementById('res-time').value = res.time;
+            document.getElementById('res-type').value = res.type;
+
+            document.getElementById('reserve-form-title').innerText = "④ 予約の編集 (修正中)";
+            document.getElementById('reserve-submit-btn').innerText = "修正内容を保存";
+            document.getElementById('reserve-cancel-btn').style.display = "block";
+
+            document.querySelectorAll('.page-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-button').forEach(el => el.classList.remove('active'));
+            document.getElementById('admin-page').classList.add('active');
+            document.querySelector("button[onclick*='admin-page']").classList.add('active');
+        }
+
+        function cancelEditMode() {
+            document.getElementById('edit-index').value = "";
+            document.getElementById('edit-old-date').value = "";
+            document.getElementById('reserve-form').reset();
+            
+            document.getElementById('reserve-form-title').innerText = "④ 予約の入力";
+            document.getElementById('reserve-submit-btn').innerText = "予約を登録";
+            document.getElementById('reserve-cancel-btn').style.display = "none";
+            
+            const todayStr = new Date().toISOString().split('T')[0];
+            document.getElementById('res-date').value = todayStr;
+        }
+
+        // カレンダー描画
+        function renderCalendar() {
+            const year = currentNavDate.getFullYear();
+            const month = currentNavDate.getMonth();
+            document.getElementById('calendar-title').innerText = `${year}年 ${month + 1}月`;
+            
+            const grid = document.getElementById('calendar-grid');
+            grid.innerHTML = '';
+
+            ['日', '月', '火', '水', '木', '金', '土'].forEach(day => {
+                const h = document.createElement('div'); h.className = 'day-name'; h.innerText = day; grid.appendChild(h);
+            });
+
+            const firstDay = new Date(year, month, 1).getDay();
+            const totalDays = new Date(year, month + 1, 0).getDate();
+
+            for (let i = 0; i < firstDay; i++) grid.appendChild(document.createElement('div'));
+
+            for (let day = 1; day <= totalDays; day++) {
+                const dateObj = new Date(year, month, day);
+                const dayOfWeek = dateObj.getDay();
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                
+                const cell = document.createElement('div');
+                cell.className = 'calendar-day';
+
+                const isRegularHoliday = (dayOfWeek === 0) || (dayOfWeek === 1 && isJapaneseHoliday(year, month, day));
+                
+                let dutyStaff = null;
+                let isOverride = false;
+                let isLeaveDay = false;
+                let leaveStaffName = "";
+
+                // オーバーライドデータの解析
+                const currentOverride = AppData.overrideShifts[dateStr];
+
+                if (isRegularHoliday) {
+                    cell.classList.add('regular-holiday');
+                } else {
+                    if (currentOverride) {
+                        if (currentOverride === 'OFF') {
+                            // 臨時休業
+                        } else if (currentOverride.startsWith('LEAVE:')) {
+                            // 休み申請
+                            isLeaveDay = true;
+                            leaveStaffName = currentOverride.split(':')[1];
+                        } else {
+                            // 代理スタッフ出勤
+                            dutyStaff = currentOverride;
+                            isOverride = true;
+                        }
+                    } else {
+                        // 通常週固定
+                        dutyStaff = AppData.weeklyShift[dayOfWeek];
+                    }
+                }
+
+                // セルへの色付け（休み申請の場合は最優先で濃い赤）
+                if (isLeaveDay) {
+                    cell.classList.add('leave-day');
+                } else if (dutyStaff) {
+                    const info = AppData.staffs.find(st => st.name === dutyStaff);
+                    if (info) { cell.style.backgroundColor = info.color; cell.style.color = info.textColor; }
+                }
+
+                // 日付ヘッダー組み立て
+                const dayInfo = document.createElement('div');
+                dayInfo.className = 'day-info';
+                const dayNum = document.createElement('div');
+                dayNum.className = 'day-number'; dayNum.innerText = day;
+                dayInfo.appendChild(dayNum);
+
+                // 各種ステータスに応じたカレンダー内部表示
+                if (isRegularHoliday) {
+                    const closedLabel = document.createElement('div');
+                    closedLabel.className = 'closed-label regular'; closedLabel.innerText = '定休日';
+                    cell.appendChild(dayInfo); cell.appendChild(closedLabel);
+                } else if (isLeaveDay) {
+                    // 🌟 休み申請（濃い赤）の表示処理
+                    const closedLabel = document.createElement('div');
+                    closedLabel.className = 'closed-label leave'; 
+                    closedLabel.innerText = `休み：${leaveStaffName}`;
+                    
+                    const revBtn = document.createElement('span');
+                    revBtn.className = 'revert-shift-btn';
+                    revBtn.innerText = '通常に戻す';
+                    revBtn.onclick = (e) => { e.stopPropagation(); revertShift(dateStr); };
+                    
+                    dayInfo.appendChild(revBtn);
+                    cell.appendChild(dayInfo); 
+                    cell.appendChild(closedLabel);
+                } else if (currentOverride === 'OFF') {
+                    // 🌟 臨時休業の表示処理
+                    cell.classList.add('regular-holiday');
+                    const closedLabel = document.createElement('div');
+                    closedLabel.className = 'closed-label regular'; closedLabel.innerText = '臨時休業';
+                    
+                    const revBtn = document.createElement('span');
+                    revBtn.className = 'revert-shift-btn';
+                    revBtn.innerText = '通常営業に';
+                    revBtn.onclick = (e) => { e.stopPropagation(); revertShift(dateStr); };
+                    
+                    dayInfo.appendChild(revBtn);
+                    cell.appendChild(dayInfo);
+                    cell.appendChild(closedLabel);
+                } else {
+                    // 通常出勤 or 代理出勤
+                    if (dutyStaff) {
+                        const dayStaff = document.createElement('div');
+                        dayStaff.className = 'day-staff';
+                        if(isOverride) { 
+                            dayStaff.classList.add('changed'); 
+                            dayStaff.innerText = `🔄${dutyStaff}`; 
+                            
+                            const revBtn = document.createElement('span');
+                            revBtn.className = 'revert-shift-btn';
+                            revBtn.innerText = '通常に戻す';
+                            revBtn.onclick = (e) => { e.stopPropagation(); revertShift(dateStr); };
+                            dayInfo.appendChild(revBtn);
+                        } else { 
+                            dayStaff.innerText = dutyStaff; 
+                        }
+                        dayStaff.style.backgroundColor = 'rgba(255,255,255,0.6)';
+                        dayInfo.appendChild(dayStaff);
+                    }
+                    cell.appendChild(dayInfo);
+                }
+
+                // 予約データの表示
+                if (AppData.reservations[dateStr]) {
+                    AppData.reservations[dateStr].sort((a,b) => a.time.localeCompare(b.time));
+                    AppData.reservations[dateStr].forEach((res, index) => {
+                        const badge = document.createElement('div');
+                        badge.className = `reservation-item type-${res.type}`;
+                        
+                        const textSpan = document.createElement('span');
+                        textSpan.className = 'res-text';
+                        textSpan.innerText = `${res.time} ${res.name} (${res.count}名)`;
+                        badge.appendChild(textSpan);
+
+                        const actionDiv = document.createElement('div');
+                        actionDiv.className = 'res-actions';
+
+                        const editBtn = document.createElement('button');
+                        editBtn.className = 'res-btn edit'; editBtn.innerText = '✏️';
+                        editBtn.onclick = () => editReservation(dateStr, index);
+
+                        const delBtn = document.createElement('button');
+                        delBtn.className = 'res-btn del'; delBtn.innerText = '×';
+                        delBtn.onclick = () => deleteReservation(dateStr, index);
+
+                        actionDiv.appendChild(editBtn); actionDiv.appendChild(delBtn);
+                        badge.appendChild(actionDiv);
+                        cell.appendChild(badge);
+                    });
+                }
+                grid.appendChild(cell);
+            }
+        }
+
+        function changeMonth(offset) {
+            currentNavDate.setMonth(currentNavDate.getMonth() + offset);
+            renderCalendar();
+        }
+
+        // 予約登録・編集コミット
+        document.getElementById('reserve-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const date = document.getElementById('res-date').value;
+            const name = document.getElementById('res-name').value;
+            const count = document.getElementById('res-count').value;
+            const time = document.getElementById('res-time').value;
+            const type = document.getElementById('res-type').value;
+
+            const editIndex = document.getElementById('edit-index').value;
+            const editOldDate = document.getElementById('edit-old-date').value;
+
+            if (date && name && count && time && type) {
+                if (editIndex !== "") {
+                    AppData.reservations[editOldDate].splice(editIndex, 1);
+                    if(AppData.reservations[editOldDate].length === 0) { delete AppData.reservations[editOldDate]; }
+                    alert('予約内容を修正しました。');
+                } else {
+                    alert('新規予約を登録しました。');
+                }
+
+                if (!AppData.reservations[date]) AppData.reservations[date] = [];
+                AppData.reservations[date].push({ name, count, time, type });
+                
+                saveData();
+                cancelEditMode();
+            }
+        });
+
+        window.onload = function() {
+            const todayStr = new Date().toISOString().split('T')[0];
+            document.getElementById('res-date').value = todayStr;
+            document.getElementById('override-date').value = todayStr;
+            loadData();
+            renderAll();
+        };
+    </script>
+</body>
+</html>
