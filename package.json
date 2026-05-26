@@ -1,0 +1,12 @@
+
+{
+ "name":"restaurant-shift-app",
+ "private":true,
+ "scripts":{"dev":"vite","build":"vite build"},
+ "dependencies":{
+   "@supabase/supabase-js":"^2.0.0",
+   "react":"^19.0.0",
+   "react-dom":"^19.0.0",
+   "react-router-dom":"^7.0.0"
+ }
+}
